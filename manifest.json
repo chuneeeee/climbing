@@ -1,0 +1,19 @@
+{
+  "name": "볼더링 영상 자동 크롭",
+  "short_name": "볼더링 크롭",
+  "description": "MediaPipe Pose로 볼더링 영상을 자동으로 크롭합니다",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#5a8fff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
