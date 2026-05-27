@@ -73,8 +73,8 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
     cx = (px1 + px2) / 2
     cy = (py1 + py2) / 2
 
-    # Crop = 2x padded person height (person fills ~50% of frame)
-    crop_h = padded_h * 2.5
+    # Crop = 3.5x padded person height (person fills ~29% of frame)
+    crop_h = padded_h * 3.5
     crop_w = crop_h * ratio
 
     # Ensure crop is wide enough to contain the person
@@ -237,6 +237,23 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
 
             if not key_times:
                 raise RuntimeError("영상에서 프레임을 읽을 수 없습니다")
+
+            # Lock zoom: use 90th-percentile crop size for all frames so zoom never changes
+            fixed_cw = float(np.percentile([k["cw"] for k in smoothed_keys], 90))
+            fixed_ch = float(np.percentile([k["ch"] for k in smoothed_keys], 90))
+            if fixed_cw > vid_w:
+                fixed_cw = float(vid_w); fixed_ch = fixed_cw / ratio
+            if fixed_ch > vid_h:
+                fixed_ch = float(vid_h); fixed_cw = fixed_ch * ratio
+            for i, (key, pkey) in enumerate(zip(smoothed_keys, person_keys)):
+                cx = key["sx"] + key["cw"] / 2
+                cy = key["sy"] + key["ch"] / 2
+                sx = max(0.0, min(cx - fixed_cw / 2, vid_w - fixed_cw))
+                sy = max(0.0, min(cy - fixed_ch / 2, vid_h - fixed_ch))
+                px1, py1 = pkey["sx"], pkey["sy"]
+                px2, py2 = px1 + pkey["cw"], py1 + pkey["ch"]
+                sx, sy = constrain_to_person(sx, sy, fixed_cw, fixed_ch, px1, py1, px2, py2, vid_w, vid_h)
+                smoothed_keys[i] = {"sx": sx, "sy": sy, "cw": fixed_cw, "ch": fixed_ch}
 
             update("encoding", 45, "인코딩 중...")
 
