@@ -201,7 +201,32 @@
 
     /* hidden helpers */
     #srcVideo { display: none; }
-    #offCanvas { display: none; }
+
+    /* Pose preview overlay */
+    .pose-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #111;
+    }
+    .pose-wrap video { width: 100%; display: block; border-radius: 0; background: none; }
+    #poseOverlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    #poseBadge {
+      position: absolute;
+      top: 10px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      font-size: 0.78rem; font-weight: 600;
+      padding: 4px 14px; border-radius: 20px;
+      white-space: nowrap;
+    }
+    #poseBadge.detected { color: #6bffb8; }
+    #poseBadge.none     { color: #aaa; }
 
     footer {
       margin-top: 32px;
@@ -270,16 +295,11 @@
 
 <!-- 미리보기 -->
 <div class="card" id="previewCard" style="display:none">
-  <div class="card-title">미리보기</div>
-  <div class="preview-wrap">
-    <div class="preview-box">
-      <p>원본</p>
-      <video id="srcVideo" muted playsinline></video>
-    </div>
-    <div class="preview-box">
-      <p>크롭 결과</p>
-      <canvas id="previewCanvas"></canvas>
-    </div>
+  <div class="card-title">포즈 미리보기</div>
+  <div class="pose-wrap">
+    <video id="srcVideo" muted playsinline></video>
+    <canvas id="poseOverlay"></canvas>
+    <div id="poseBadge" class="none">감지 중...</div>
   </div>
 </div>
 
@@ -305,6 +325,7 @@
   <a href="https://github.com/chuneeeee/climbing" target="_blank">GitHub</a>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
 
@@ -331,7 +352,8 @@ const downloadBtn   = document.getElementById('downloadBtn');
 const resetBtn      = document.getElementById('resetBtn');
 const previewCard   = document.getElementById('previewCard');
 const srcVideo      = document.getElementById('srcVideo');
-const previewCanvas = document.getElementById('previewCanvas');
+const poseOverlay   = document.getElementById('poseOverlay');
+const poseBadge     = document.getElementById('poseBadge');
 const progressWrap  = document.getElementById('progressWrap');
 const progressFill  = document.getElementById('progressFill');
 const progressLabel = document.getElementById('progressLabel');
@@ -365,45 +387,148 @@ document.querySelectorAll('.ratio-btn').forEach(btn => {
     const h = fhdHeightMap[selectedRatio];
     heightRange.value = h;
     heightVal.textContent = h;
-    if (srcVideo.src) drawPreviewFrame();
+    if (srcVideo.videoWidth) drawPoseOverlay(lastLandmarks);
   });
 });
 
 // ── Range inputs ──────────────────────────────────────────────────────────────
-paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; });
+paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
 smoothRange.addEventListener('input', () => { smoothVal.textContent = smoothRange.value + 'f'; });
 heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; });
+
+// ── MediaPipe Pose (preview only) ────────────────────────────────────────────
+const POSE_CONNECTIONS = [
+  [11,12],[11,13],[13,15],[12,14],[14,16], // arms
+  [11,23],[12,24],[23,24],                 // torso
+  [23,25],[25,27],[24,26],[26,28],         // legs
+  [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8], // face
+];
+
+let poseDetector = null;
+let lastLandmarks = null;
+
+async function initPose() {
+  if (poseDetector) return;
+  poseDetector = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+  poseDetector.setOptions({ modelComplexity: 1, smoothLandmarks: false,
+    minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  poseDetector.onResults(r => { lastLandmarks = r.poseLandmarks || null; });
+  await poseDetector.initialize();
+}
+
+function drawPoseOverlay(landmarks) {
+  const w = srcVideo.videoWidth, h = srcVideo.videoHeight;
+  poseOverlay.width = w; poseOverlay.height = h;
+  const ctx = poseOverlay.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  if (!landmarks) {
+    poseBadge.textContent = '포즈 감지 안 됨';
+    poseBadge.className = 'none';
+    // fallback: center crop box
+    drawCropBoxOnOverlay(ctx, w, h, null);
+    return;
+  }
+
+  poseBadge.textContent = '포즈 감지됨';
+  poseBadge.className = 'detected';
+
+  // skeleton connections
+  ctx.strokeStyle = 'rgba(90,143,255,0.85)';
+  ctx.lineWidth = Math.max(2, w / 400);
+  for (const [a, b] of POSE_CONNECTIONS) {
+    const la = landmarks[a], lb = landmarks[b];
+    if ((la?.visibility ?? 0) > 0.3 && (lb?.visibility ?? 0) > 0.3) {
+      ctx.beginPath();
+      ctx.moveTo(la.x * w, la.y * h);
+      ctx.lineTo(lb.x * w, lb.y * h);
+      ctx.stroke();
+    }
+  }
+  // dots
+  const r = Math.max(3, w / 300);
+  for (const l of landmarks) {
+    if ((l.visibility ?? 0) > 0.3) {
+      ctx.beginPath();
+      ctx.arc(l.x * w, l.y * h, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    }
+  }
+
+  drawCropBoxOnOverlay(ctx, w, h, landmarks);
+}
+
+function drawCropBoxOnOverlay(ctx, vidW, vidH, landmarks) {
+  const ratio = ratioMap[selectedRatio];
+  const padding = parseInt(paddingRange.value) / 100;
+  let sx, sy, cw, ch;
+
+  if (landmarks) {
+    const pts = landmarks.filter(l => (l.visibility ?? 0) > 0.3);
+    const xs = pts.map(l => l.x), ys = pts.map(l => l.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const pw = (maxX - minX) * vidW, ph = (maxY - minY) * vidH;
+    const px1 = Math.max(0, minX * vidW - pw * padding);
+    const px2 = Math.min(vidW, maxX * vidW + pw * padding);
+    const py1 = Math.max(0, minY * vidH - ph * padding);
+    const py2 = Math.min(vidH, maxY * vidH + ph * padding);
+    const padW = px2 - px1, padH = py2 - py1;
+    ch = padH * 2; cw = ch * ratio;
+    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+    if (ch > vidH) { ch = vidH; cw = ch * ratio; }
+    sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
+    sy = Math.max(0, Math.min((py1 + py2) / 2 - ch / 2, vidH - ch));
+  } else {
+    cw = vidH * ratio; ch = vidH;
+    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+    sx = (vidW - cw) / 2; sy = (vidH - ch) / 2;
+  }
+
+  ctx.strokeStyle = '#5a8fff';
+  ctx.lineWidth = Math.max(2, vidW / 300);
+  ctx.setLineDash([]);
+  ctx.strokeRect(sx, sy, cw, ch);
+}
 
 // ── Load file ─────────────────────────────────────────────────────────────────
 function loadFile(file) {
   videoFile = file;
   outputJobId = null;
   downloadBtn.disabled = true;
+  lastLandmarks = null;
+  poseBadge.textContent = '감지 중...';
+  poseBadge.className = 'none';
   srcVideo.src = URL.createObjectURL(file);
   srcVideo.load();
   srcVideo.onloadedmetadata = () => {
     previewCard.style.display = '';
     srcVideo.style.display = 'block';
     srcVideo.currentTime = 0;
-    srcVideo.onseeked = drawPreviewFrame;
+    srcVideo.onseeked = runPosePreview;
     processBtn.disabled = false;
     setStatus('파일 로드 완료: ' + file.name, 'ok');
   };
 }
 
-// ── Static preview (center crop, no pose) ─────────────────────────────────────
-function drawPreviewFrame() {
+async function runPosePreview() {
   if (!srcVideo.videoWidth) return;
-  const ratio = ratioMap[selectedRatio];
-  const svw = srcVideo.videoWidth, svh = srcVideo.videoHeight;
-  const outH = parseInt(heightRange.value);
-  const outW = Math.round(outH * ratio);
-  let cropW = svh * ratio, cropH = svh;
-  if (cropW > svw) { cropW = svw; cropH = svw / ratio; }
-  const sx = (svw - cropW) / 2, sy = (svh - cropH) / 2;
-  previewCanvas.width = outW; previewCanvas.height = outH;
-  previewCanvas.getContext('2d').drawImage(srcVideo, sx, sy, cropW, cropH, 0, 0, outW, outH);
+  const w = srcVideo.videoWidth, h = srcVideo.videoHeight;
+  // draw to offscreen canvas for MediaPipe
+  const tmp = document.createElement('canvas');
+  tmp.width = Math.min(w, 1280); tmp.height = Math.round(tmp.width * h / w);
+  tmp.getContext('2d').drawImage(srcVideo, 0, 0, tmp.width, tmp.height);
+  try {
+    await initPose();
+    await poseDetector.send({ image: tmp });
+    drawPoseOverlay(lastLandmarks);
+  } catch(e) {
+    drawPoseOverlay(null);
+  }
 }
+
+function drawPreviewFrame() { runPosePreview(); }
 
 // ── Main processing (server-side) ─────────────────────────────────────────────
 processBtn.addEventListener('click', () => {
@@ -534,8 +659,9 @@ downloadBtn.addEventListener('click', async () => {
 // ── Reset ─────────────────────────────────────────────────────────────────────
 resetBtn.addEventListener('click', () => {
   if (isProcessing) return;
-  videoFile = null; outputJobId = null;
+  videoFile = null; outputJobId = null; lastLandmarks = null;
   srcVideo.src = ''; fileInput.value = '';
+  poseOverlay.getContext('2d').clearRect(0, 0, poseOverlay.width, poseOverlay.height);
   previewCard.style.display = 'none';
   processBtn.disabled = true; downloadBtn.disabled = true;
   progressWrap.style.display = 'none';
