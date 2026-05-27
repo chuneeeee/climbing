@@ -74,34 +74,6 @@
     #dropzone span { color: #5a8fff; }
     #fileInput { display: none; }
 
-    /* Ratio selector */
-    .ratio-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .ratio-btn {
-      flex: 1;
-      min-width: 80px;
-      background: #222;
-      border: 2px solid #333;
-      border-radius: 10px;
-      color: #ccc;
-      padding: 12px 8px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-      font-size: 0.88rem;
-    }
-    .ratio-btn:hover { border-color: #555; color: #fff; }
-    .ratio-btn.active {
-      border-color: #5a8fff;
-      background: rgba(90,143,255,0.12);
-      color: #fff;
-    }
-    .ratio-btn .label { font-weight: 700; font-size: 1rem; }
-    .ratio-btn .desc { font-size: 0.72rem; color: #888; margin-top: 2px; }
-
     /* Padding option */
     .row {
       display: flex;
@@ -258,21 +230,7 @@
 
 <!-- 출력 옵션 -->
 <div class="card">
-  <div class="card-title">출력 비율</div>
-  <div class="ratio-group">
-    <div class="ratio-btn active" data-ratio="9:16">
-      <div class="label">9:16</div>
-      <div class="desc">세로형 숏츠/릴스</div>
-    </div>
-    <div class="ratio-btn" data-ratio="1:1">
-      <div class="label">1:1</div>
-      <div class="desc">정사각형</div>
-    </div>
-    <div class="ratio-btn" data-ratio="4:5">
-      <div class="label">4:5</div>
-      <div class="desc">인스타그램</div>
-    </div>
-  </div>
+  <div class="card-title">출력 옵션 <span style="font-size:0.8rem;color:#888;font-weight:400">비율 4:5 고정</span></div>
 
   <div class="row">
     <label>여백 (패딩)</label>
@@ -288,8 +246,8 @@
 
   <div class="row">
     <label>출력 높이(px)</label>
-    <input type="range" id="heightRange" min="480" max="3840" value="1920" step="120" />
-    <span id="heightVal" style="width:50px">1920</span>
+    <input type="range" id="heightRange" min="480" max="3840" value="1350" step="120" />
+    <span id="heightVal" style="width:50px">1350</span>
   </div>
 </div>
 
@@ -338,7 +296,7 @@ const API_BASE = (window.location.hostname === 'chuneeeee.github.io' ||
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let videoFile = null;
-let selectedRatio = '9:16';
+const selectedRatio = '4:5';
 let outputJobId = null;
 let isProcessing = false;
 
@@ -376,20 +334,6 @@ dropzone.addEventListener('drop', e => {
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
 
-// ── Ratio buttons ─────────────────────────────────────────────────────────────
-const fhdHeightMap = { '9:16': 1920, '4:5': 1350, '1:1': 1080 };
-
-document.querySelectorAll('.ratio-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedRatio = btn.dataset.ratio;
-    const h = fhdHeightMap[selectedRatio];
-    heightRange.value = h;
-    heightVal.textContent = h;
-    if (srcVideo.videoWidth) drawPoseOverlay(lastLandmarks);
-  });
-});
 
 // ── Range inputs ──────────────────────────────────────────────────────────────
 paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
