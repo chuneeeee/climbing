@@ -24,35 +24,74 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
     pts = [(l.x, l.y) for l in landmarks if l.visibility > 0.3]
     if not pts:
         return None
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
-    cx = (min_x + max_x) / 2 * vid_w
-    cy = (min_y + max_y) / 2 * vid_h
-    person_h = (max_y - min_y) * vid_h
-    crop_h = person_h * 3 * (1 + padding * 0.1)
+
+    pw = (max_x - min_x) * vid_w
+    ph = (max_y - min_y) * vid_h
+
+    # Padded person bounds — these must NEVER be cut off
+    px1 = max(0.0, min_x * vid_w - pw * padding)
+    px2 = min(float(vid_w), max_x * vid_w + pw * padding)
+    py1 = max(0.0, min_y * vid_h - ph * padding)
+    py2 = min(float(vid_h), max_y * vid_h + ph * padding)
+
+    padded_w = px2 - px1
+    padded_h = py2 - py1
+    cx = (px1 + px2) / 2
+    cy = (py1 + py2) / 2
+
+    # Crop = 3x padded person height (person in center 1/3)
+    crop_h = padded_h * 3
     crop_w = crop_h * ratio
+
+    # Ensure crop is wide enough to contain the person
+    if crop_w < padded_w:
+        crop_w = padded_w
+        crop_h = crop_w / ratio
+
+    # Clamp to video bounds while preserving ratio
     if crop_w > vid_w:
-        crop_w = vid_w
+        crop_w = float(vid_w)
         crop_h = crop_w / ratio
     if crop_h > vid_h:
-        crop_h = vid_h
+        crop_h = float(vid_h)
         crop_w = crop_h * ratio
+
     sx = max(0.0, min(cx - crop_w / 2, vid_w - crop_w))
     sy = max(0.0, min(cy - crop_h / 2, vid_h - crop_h))
-    return {"sx": sx, "sy": sy, "cw": crop_w, "ch": crop_h}
+
+    return {
+        "sx": sx, "sy": sy, "cw": crop_w, "ch": crop_h,
+        "px1": px1, "px2": px2, "py1": py1, "py2": py2,
+    }
+
+
+def constrain_to_person(sx, sy, cw, ch, px1, py1, px2, py2, vid_w, vid_h):
+    """Shift crop box just enough so person bounding box is fully inside."""
+    if px1 < sx:
+        sx = px1
+    if px2 > sx + cw:
+        sx = px2 - cw
+    if py1 < sy:
+        sy = py1
+    if py2 > sy + ch:
+        sy = py2 - ch
+    sx = max(0.0, min(sx, vid_w - cw))
+    sy = max(0.0, min(sy, vid_h - ch))
+    return sx, sy
 
 
 def lerp_box(a, b, t):
     return {k: a[k] + t * (b[k] - a[k]) for k in a}
 
 
-def get_box_at(t, key_times, smoothed_keys):
+def get_box_at(t, key_times, keys):
     if t <= key_times[0]:
-        return smoothed_keys[0]
+        return keys[0]
     if t >= key_times[-1]:
-        return smoothed_keys[-1]
+        return keys[-1]
     lo, hi = 0, len(key_times) - 1
     while hi - lo > 1:
         mid = (lo + hi) // 2
@@ -61,7 +100,7 @@ def get_box_at(t, key_times, smoothed_keys):
         else:
             hi = mid
     f = (t - key_times[lo]) / (key_times[hi] - key_times[lo])
-    return lerp_box(smoothed_keys[lo], smoothed_keys[hi], f)
+    return lerp_box(keys[lo], keys[hi], f)
 
 
 def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, ema_smooth: int, out_h: int):
@@ -93,7 +132,6 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             pose_w = min(vid_w, 1280)
             pose_h = round(pose_w * vid_h / vid_w)
 
-            # Phase 1: pose analysis at 6fps
             update("analyzing", 0, "포즈 분석 중...")
 
             mp_pose = mp.solutions.pose.Pose(
@@ -106,8 +144,21 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
 
             total_analysis = max(1, int(duration * analysis_fps))
             key_times = []
-            smoothed_keys = []
+            smoothed_keys = []  # EMA-smoothed + constrained crop boxes
+            person_keys = []    # padded person bounds per keyframe
+
             ema = None
+
+            def fallback_box():
+                cw = float(vid_h) * ratio
+                ch = float(vid_h)
+                if cw > vid_w:
+                    cw = float(vid_w)
+                    ch = cw / ratio
+                return {
+                    "sx": (vid_w - cw) / 2, "sy": (vid_h - ch) / 2, "cw": cw, "ch": ch,
+                    "px1": 0.0, "px2": float(vid_w), "py1": 0.0, "py2": float(vid_h),
+                }
 
             cap = cv2.VideoCapture(input_path)
             for ai in range(total_analysis):
@@ -122,19 +173,23 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 results = mp_pose.process(rgb)
 
                 lm = results.pose_landmarks.landmark if results.pose_landmarks else None
-                box = get_crop_box(lm, vid_w, vid_h, ratio, padding) if lm else None
+                box = get_crop_box(lm, vid_w, vid_h, ratio, padding) if lm else fallback_box()
 
-                if not box:
-                    cw = vid_h * ratio
-                    ch = float(vid_h)
-                    if cw > vid_w:
-                        cw = float(vid_w)
-                        ch = cw / ratio
-                    box = {"sx": (vid_w - cw) / 2, "sy": (vid_h - ch) / 2, "cw": cw, "ch": ch}
+                crop = {k: box[k] for k in ("sx", "sy", "cw", "ch")}
+                ema = {k: ema[k] + ema_alpha * (crop[k] - ema[k]) for k in crop} if ema else dict(crop)
 
-                ema = {k: ema[k] + ema_alpha * (box[k] - ema[k]) for k in box} if ema else dict(box)
+                # Constrain so person is never cut off even when EMA lags
+                sx, sy = constrain_to_person(
+                    ema["sx"], ema["sy"], ema["cw"], ema["ch"],
+                    box["px1"], box["py1"], box["px2"], box["py2"],
+                    vid_w, vid_h,
+                )
+                smoothed_keys.append({"sx": sx, "sy": sy, "cw": ema["cw"], "ch": ema["ch"]})
+                person_keys.append({
+                    "sx": box["px1"], "sy": box["py1"],
+                    "cw": box["px2"] - box["px1"], "ch": box["py2"] - box["py1"],
+                })
                 key_times.append(t)
-                smoothed_keys.append(dict(ema))
 
                 progress = (ai + 1) / total_analysis * 45
                 update("analyzing", progress, f"포즈 분석 중... {progress:.0f}%")
@@ -145,7 +200,6 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             if not key_times:
                 raise RuntimeError("영상에서 프레임을 읽을 수 없습니다")
 
-            # Phase 2: frame-by-frame encode via FFmpeg pipe
             update("encoding", 45, "인코딩 중...")
 
             pixels = out_w * out_h
@@ -172,13 +226,22 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 ret, frame = cap.read()
                 if not ret:
                     break
+
                 t = frame_idx / input_fps
                 b = get_box_at(t, key_times, smoothed_keys)
-                sx = max(0, min(int(round(b["sx"])), vid_w - 1))
-                sy = max(0, min(int(round(b["sy"])), vid_h - 1))
-                cw = min(int(round(b["cw"])), vid_w - sx)
-                ch = min(int(round(b["ch"])), vid_h - sy)
-                cropped = frame[sy:sy + ch, sx:sx + cw]
+                pb = get_box_at(t, key_times, person_keys)
+
+                # Re-apply constraint on interpolated box
+                sx, sy = constrain_to_person(
+                    b["sx"], b["sy"], b["cw"], b["ch"],
+                    pb["sx"], pb["sy"],
+                    pb["sx"] + pb["cw"], pb["sy"] + pb["ch"],
+                    vid_w, vid_h,
+                )
+                cw = min(int(round(b["cw"])), vid_w - int(sx))
+                ch = min(int(round(b["ch"])), vid_h - int(sy))
+
+                cropped = frame[int(sy):int(sy) + ch, int(sx):int(sx) + cw]
                 resized = cv2.resize(cropped, (out_w, out_h), interpolation=cv2.INTER_LANCZOS4)
                 proc.stdin.write(resized.tobytes())
                 frame_idx += 1
@@ -192,7 +255,6 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             if proc.returncode != 0:
                 raise RuntimeError("FFmpeg 인코딩 실패")
 
-            # Mux audio from original
             update("encoding", 92, "오디오 합성 중...")
             mux = subprocess.run([
                 "ffmpeg", "-y",
@@ -203,7 +265,6 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 "-shortest", output_path,
             ], stderr=subprocess.DEVNULL)
             if mux.returncode != 0:
-                # no audio — just rename
                 os.rename(temp_video, output_path)
             else:
                 if os.path.exists(temp_video):
