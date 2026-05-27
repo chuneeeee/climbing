@@ -476,11 +476,40 @@ async function startProcessing() {
 }
 
 // ── Download ──────────────────────────────────────────────────────────────────
-downloadBtn.addEventListener('click', () => {
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+if (isIOS) downloadBtn.textContent = '사진에 저장';
+
+downloadBtn.addEventListener('click', async () => {
   if (!outputJobId) return;
+  const url = `${API_BASE}/download/${outputJobId}`;
+  const filename = `cropped_${selectedRatio.replace(':', 'x')}.mp4`;
+
+  // iOS: fetch blob → Web Share API → "사진에 저장"
+  if (isIOS && navigator.share) {
+    downloadBtn.disabled = true;
+    setStatus('영상 불러오는 중...', '');
+    try {
+      const blob = await fetch(url).then(r => r.blob());
+      const file = new File([blob], filename, { type: 'video/mp4' });
+      await navigator.share({ files: [file], title: '볼더링 크롭' });
+      setStatus('저장 완료!', 'ok');
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setStatus('취소됨', '');
+      } else {
+        setStatus('공유 시트에서 "사진에 저장"을 선택하세요', '');
+        window.open(url, '_blank');
+      }
+    } finally {
+      downloadBtn.disabled = false;
+    }
+    return;
+  }
+
+  // 일반 브라우저: 파일 다운로드
   const a = document.createElement('a');
-  a.href = `${API_BASE}/download/${outputJobId}`;
-  a.download = `cropped_${selectedRatio.replace(':', 'x')}.mp4`;
+  a.href = url;
+  a.download = filename;
   a.click();
 });
 
