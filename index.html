@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>볼더링 영상 자동 크롭</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#5a8fff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="볼더링 크롭" />
+  <link rel="apple-touch-icon" href="icon.svg" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -285,7 +292,7 @@ async function startProcessing() {
 
   const ratio = ratioMap[selectedRatio];
   const padding = parseInt(paddingRange.value) / 100;
-  const emaAlpha = 0.8 / parseInt(smoothRange.value); // 1=빠름(0.8), 30=안정(0.027)
+  const emaAlpha = 0.8 / parseInt(smoothRange.value);
   const outH = parseInt(heightRange.value);
   const outW = Math.round(outH * ratio);
   const outputFps = 30;
@@ -314,7 +321,6 @@ async function startProcessing() {
   pose.onResults(r => { poseLandmarks = r.poseLandmarks || null; });
   await pose.initialize();
 
-  // Phase 1: 6fps 포즈 분석 + EMA 스무딩
   setStatus('포즈 분석 중... (1/2)', '');
   const keyTimes = [], smoothedKeys = [];
   let ema = null;
@@ -362,7 +368,6 @@ async function startProcessing() {
              cropW: a.cropW+f*(b.cropW-a.cropW), cropH: a.cropH+f*(b.cropH-a.cropH) };
   }
 
-  // Phase 2: 실시간 재생 + rAF 렌더링 (끓림 없음)
   setStatus('영상 인코딩 중... (2/2)', '');
   let stream, recorder, chunks = [];
   try {
@@ -433,6 +438,11 @@ function getSupportedMimeType() {
   const candidates = ['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
   for (const t of candidates) { if (MediaRecorder.isTypeSupported(t)) return t; }
   return '';
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 </script>
 </body>
