@@ -149,8 +149,8 @@
     <span id="smoothVal">10</span>
   </div>
   <div class="row">
-    <label>출력 높이(px)</label>
-    <input type="range" id="heightRange" min="480" max="1920" value="1080" step="60" />
+    <label>출력 높이(px) &mdash; 최대 4K</label>
+    <input type="range" id="heightRange" min="480" max="3840" value="1080" step="120" />
     <span id="heightVal" style="width:50px">1080</span>
   </div>
 </div>
@@ -307,8 +307,12 @@ async function startProcessing() {
   const duration = vid.duration;
   const totalAnalysis = Math.ceil(duration * analysisFps);
 
+  // 포즈 분석용 캔버스: 1280px 이하로 다운스케일 → 4K 입력 시 ~9배 빠름
+  // MediaPipe 랜드마크는 0~1 정규화값 → 원본 해상도에 정확히 매핑
+  const poseW = Math.min(vidW, 1280);
+  const poseH = Math.round(poseW * vidH / vidW);
   const poseCanvas = document.createElement('canvas');
-  poseCanvas.width = vidW; poseCanvas.height = vidH;
+  poseCanvas.width = poseW; poseCanvas.height = poseH;
   const poseCtx = poseCanvas.getContext('2d');
 
   offCanvas.width = outW; offCanvas.height = outH;
@@ -329,7 +333,7 @@ async function startProcessing() {
     const t = Math.min(ai / analysisFps, duration - 0.01);
     vid.currentTime = t;
     await new Promise(r => { vid.onseeked = r; });
-    poseCtx.drawImage(vid, 0, 0, vidW, vidH);
+    poseCtx.drawImage(vid, 0, 0, poseW, poseH);
     await pose.send({ image: poseCanvas });
 
     let box = poseLandmarks ? getCropBox(poseLandmarks, vidW, vidH, ratio, padding) : null;
@@ -369,40 +373,56 @@ async function startProcessing() {
   }
 
   setStatus('영상 인코딩 중... (2/2)', '');
+
+  const vid2 = document.createElement('video');
+  vid2.src = URL.createObjectURL(videoFile);
+  vid2.muted = true; vid2.playsInline = true;
+  await new Promise(r => { vid2.onloadedmetadata = r; });
+
   let stream, recorder, chunks = [];
   try {
     stream = offCanvas.captureStream(outputFps);
-    recorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType(), videoBitsPerSecond: 12_000_000 });
+    // 해상도별 자동 비트레이트: ≤1080p→15Mbps, ≤1440p→25Mbps, 4K→45Mbps
+    const pixels = outW * outH;
+    const videoBitsPerSecond = pixels <= 2_073_600 ? 15_000_000
+                             : pixels <= 3_686_400 ? 25_000_000
+                             :                       45_000_000;
+    recorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType(), videoBitsPerSecond });
   } catch (e) {
     setStatus('MediaRecorder 지원 안 됨: ' + e.message, 'error');
     isProcessing = false; processBtn.disabled = false;
     return;
   }
   recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-
-  vid.currentTime = 0;
-  await new Promise(r => { vid.onseeked = r; });
   recorder.start();
 
+  previewCanvas.width = outW; previewCanvas.height = outH;
+  const previewCtx = previewCanvas.getContext('2d');
+  const useVFC = 'requestVideoFrameCallback' in vid2;
+
   await new Promise(resolve => {
-    vid.onended = () => { recorder.stop(); resolve(); };
+    vid2.onended = () => { recorder.stop(); resolve(); };
+
     function drawFrame() {
-      if (vid.ended) return;
-      const box = getBoxAt(vid.currentTime);
-      outCtx.drawImage(vid, box.sx, box.sy, box.cropW, box.cropH, 0, 0, outW, outH);
-      previewCanvas.width = outW; previewCanvas.height = outH;
-      previewCanvas.getContext('2d').drawImage(offCanvas, 0, 0);
-      const pct = (50 + Math.min(vid.currentTime / duration, 1) * 50).toFixed(1);
+      if (vid2.ended) return;
+      const box = getBoxAt(vid2.currentTime);
+      outCtx.drawImage(vid2, box.sx, box.sy, box.cropW, box.cropH, 0, 0, outW, outH);
+      previewCtx.drawImage(offCanvas, 0, 0);
+      const pct = (50 + Math.min(vid2.currentTime / duration, 1) * 50).toFixed(1);
       progressFill.style.width = pct + '%';
       progressLabel.textContent = `인코딩 중... ${pct}%`;
-      requestAnimationFrame(drawFrame);
+      if (useVFC) vid2.requestVideoFrameCallback(drawFrame);
+      else requestAnimationFrame(drawFrame);
     }
-    vid.play().then(() => requestAnimationFrame(drawFrame));
+
+    if (useVFC) vid2.requestVideoFrameCallback(drawFrame);
+    else requestAnimationFrame(drawFrame);
+    vid2.play();
   });
 
   await new Promise(r => { recorder.onstop = r; });
   outputBlob = new Blob(chunks, { type: recorder.mimeType });
-  vid.src = '';
+  vid.src = ''; vid2.src = '';
 
   progressFill.style.width = '100%';
   progressLabel.textContent = '완료!';
