@@ -338,7 +338,7 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fi
 // ── Range inputs ──────────────────────────────────────────────────────────────
 paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
 smoothRange.addEventListener('input', () => { smoothVal.textContent = smoothRange.value + 'f'; });
-heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; });
+heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
 
 // ── MediaPipe Pose (preview only) ────────────────────────────────────────────
 const POSE_CONNECTIONS = [
@@ -360,80 +360,104 @@ async function initPose() {
   await poseDetector.initialize();
 }
 
+function computeCropBox(vidW, vidH, landmarks) {
+  const ratio = 4 / 5;
+  const padding = parseInt(paddingRange.value) / 100;
+  let sx, sy, cw, ch;
+
+  if (landmarks) {
+    const pts = landmarks.filter(l => (l.visibility ?? 0) > 0.3);
+    if (pts.length) {
+      const xs = pts.map(l => l.x), ys = pts.map(l => l.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const pw = (maxX - minX) * vidW, ph = (maxY - minY) * vidH;
+      const px1 = Math.max(0, minX * vidW - pw * padding);
+      const px2 = Math.min(vidW, maxX * vidW + pw * padding);
+      const py1 = Math.max(0, minY * vidH - ph * padding);
+      const py2 = Math.min(vidH, maxY * vidH + ph * padding);
+      const padH = py2 - py1, padW = px2 - px1;
+      ch = padH * 2.5; cw = ch * ratio;
+      if (cw < padW) { cw = padW; ch = cw / ratio; }
+      if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+      if (ch > vidH) { ch = vidH; cw = ch * ratio; }
+      sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
+      sy = Math.max(0, Math.min((py1 + py2) / 2 - ch / 2, vidH - ch));
+      return { sx, sy, cw, ch };
+    }
+  }
+  // fallback: center
+  cw = vidH * ratio; ch = vidH;
+  if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+  return { sx: (vidW - cw) / 2, sy: (vidH - ch) / 2, cw, ch };
+}
+
 function drawPoseOverlay(landmarks) {
   const w = srcVideo.videoWidth, h = srcVideo.videoHeight;
   poseOverlay.width = w; poseOverlay.height = h;
   const ctx = poseOverlay.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  if (!landmarks) {
-    poseBadge.textContent = '포즈 감지 안 됨';
-    poseBadge.className = 'none';
-    // fallback: center crop box
-    drawCropBoxOnOverlay(ctx, w, h, null);
-    return;
-  }
+  poseBadge.textContent = landmarks ? '포즈 감지됨' : '포즈 감지 안 됨';
+  poseBadge.className = landmarks ? 'detected' : 'none';
 
-  poseBadge.textContent = '포즈 감지됨';
-  poseBadge.className = 'detected';
+  const { sx, sy, cw, ch } = computeCropBox(w, h, landmarks);
 
-  // skeleton connections
-  ctx.strokeStyle = 'rgba(90,143,255,0.85)';
-  ctx.lineWidth = Math.max(2, w / 400);
-  for (const [a, b] of POSE_CONNECTIONS) {
-    const la = landmarks[a], lb = landmarks[b];
-    if ((la?.visibility ?? 0) > 0.3 && (lb?.visibility ?? 0) > 0.3) {
-      ctx.beginPath();
-      ctx.moveTo(la.x * w, la.y * h);
-      ctx.lineTo(lb.x * w, lb.y * h);
-      ctx.stroke();
-    }
-  }
-  // dots
-  const r = Math.max(3, w / 300);
-  for (const l of landmarks) {
-    if ((l.visibility ?? 0) > 0.3) {
-      ctx.beginPath();
-      ctx.arc(l.x * w, l.y * h, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-    }
-  }
+  // Dim everything outside the crop box
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.rect(sx, sy, cw, ch);
+  ctx.fill('evenodd');
 
-  drawCropBoxOnOverlay(ctx, w, h, landmarks);
-}
-
-function drawCropBoxOnOverlay(ctx, vidW, vidH, landmarks) {
-  const ratio = ratioMap[selectedRatio];
-  const padding = parseInt(paddingRange.value) / 100;
-  let sx, sy, cw, ch;
-
+  // Draw skeleton clipped to crop area so it's visible against the video
   if (landmarks) {
-    const pts = landmarks.filter(l => (l.visibility ?? 0) > 0.3);
-    const xs = pts.map(l => l.x), ys = pts.map(l => l.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const pw = (maxX - minX) * vidW, ph = (maxY - minY) * vidH;
-    const px1 = Math.max(0, minX * vidW - pw * padding);
-    const px2 = Math.min(vidW, maxX * vidW + pw * padding);
-    const py1 = Math.max(0, minY * vidH - ph * padding);
-    const py2 = Math.min(vidH, maxY * vidH + ph * padding);
-    const padW = px2 - px1, padH = py2 - py1;
-    ch = padH * 2.5; cw = ch * ratio;
-    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
-    if (ch > vidH) { ch = vidH; cw = ch * ratio; }
-    sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
-    sy = Math.max(0, Math.min((py1 + py2) / 2 - ch / 2, vidH - ch));
-  } else {
-    cw = vidH * ratio; ch = vidH;
-    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
-    sx = (vidW - cw) / 2; sy = (vidH - ch) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sx, sy, cw, ch);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(90,143,255,0.9)';
+    ctx.lineWidth = Math.max(2, w / 400);
+    for (const [a, b] of POSE_CONNECTIONS) {
+      const la = landmarks[a], lb = landmarks[b];
+      if ((la?.visibility ?? 0) > 0.3 && (lb?.visibility ?? 0) > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(la.x * w, la.y * h);
+        ctx.lineTo(lb.x * w, lb.y * h);
+        ctx.stroke();
+      }
+    }
+    const r = Math.max(3, w / 300);
+    for (const l of landmarks) {
+      if ((l.visibility ?? 0) > 0.3) {
+        ctx.beginPath();
+        ctx.arc(l.x * w, l.y * h, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
-  ctx.strokeStyle = '#5a8fff';
-  ctx.lineWidth = Math.max(2, vidW / 300);
+  // Crop box border
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = Math.max(3, w / 250);
   ctx.setLineDash([]);
   ctx.strokeRect(sx, sy, cw, ch);
+
+  // Output size label inside the crop box
+  const outH = parseInt(heightRange.value);
+  const outW = Math.round(outH * 4 / 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  const fontSize = Math.max(14, w / 40);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const label = `${outW} × ${outH}`;
+  const tw = ctx.measureText(label).width;
+  const lx = sx + (cw - tw) / 2, ly = sy + ch - fontSize * 0.6;
+  ctx.fillRect(lx - 8, ly - fontSize, tw + 16, fontSize * 1.4);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, lx, ly);
 }
 
 // ── Load file ─────────────────────────────────────────────────────────────────
