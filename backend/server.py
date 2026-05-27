@@ -79,7 +79,7 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             out_w = round(out_h * ratio)
             out_w += out_w % 2
             out_h += out_h % 2
-            ema_alpha = 0.8 / max(1, ema_smooth)
+            ema_alpha = min(1.0, 3.0 / max(1, ema_smooth))
             analysis_fps = 6
 
             cap = cv2.VideoCapture(input_path)
