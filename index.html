@@ -257,8 +257,8 @@
 
   <div class="row">
     <label>카메라 안정화 (1=빠름 / 30=안정)</label>
-    <input type="range" id="smoothRange" min="1" max="30" value="10" step="1" />
-    <span id="smoothVal">10f</span>
+    <input type="range" id="smoothRange" min="1" max="30" value="5" step="1" />
+    <span id="smoothVal">5f</span>
   </div>
 
   <div class="row">
@@ -429,6 +429,7 @@ async function startProcessing() {
     if (!res.ok) throw new Error(`서버 오류 ${res.status}`);
     const data = await res.json();
     jobId = data.job_id;
+    setStatus('서버에서 처리 중...', '');
   } catch (e) {
     setStatus('업로드 실패: ' + e.message, 'error');
     isProcessing = false;
