@@ -1,0 +1,15 @@
+[Unit]
+Description=Boulder Crop API
+After=network.target
+
+[Service]
+Type=simple
+User=chun
+WorkingDirectory=/home/chun/climbing/backend
+ExecStart=/usr/bin/python3 -m uvicorn server:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
