@@ -18,17 +18,8 @@
       padding: 24px 16px;
     }
 
-    h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-      letter-spacing: -0.5px;
-    }
-    .subtitle {
-      font-size: 0.85rem;
-      color: #888;
-      margin-bottom: 28px;
-    }
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { font-size: 0.85rem; color: #888; margin-bottom: 28px; }
 
     .card {
       background: #1a1a1a;
@@ -57,143 +48,61 @@
       cursor: pointer;
       transition: border-color 0.2s, background 0.2s;
     }
-    #dropzone:hover, #dropzone.drag-over {
-      border-color: #5a8fff;
-      background: rgba(90,143,255,0.06);
-    }
+    #dropzone:hover, #dropzone.drag-over { border-color: #5a8fff; background: rgba(90,143,255,0.06); }
     #dropzone svg { opacity: 0.5; margin-bottom: 12px; }
     #dropzone p { color: #aaa; font-size: 0.9rem; }
     #dropzone span { color: #5a8fff; }
     #fileInput { display: none; }
 
-    .ratio-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    .ratio-group { display: flex; gap: 10px; flex-wrap: wrap; }
     .ratio-btn {
-      flex: 1;
-      min-width: 80px;
-      background: #222;
-      border: 2px solid #333;
-      border-radius: 10px;
-      color: #ccc;
-      padding: 12px 8px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-      font-size: 0.88rem;
+      flex: 1; min-width: 80px; background: #222; border: 2px solid #333;
+      border-radius: 10px; color: #ccc; padding: 12px 8px; cursor: pointer;
+      text-align: center; transition: all 0.15s; font-size: 0.88rem;
     }
     .ratio-btn:hover { border-color: #555; color: #fff; }
-    .ratio-btn.active {
-      border-color: #5a8fff;
-      background: rgba(90,143,255,0.12);
-      color: #fff;
-    }
+    .ratio-btn.active { border-color: #5a8fff; background: rgba(90,143,255,0.12); color: #fff; }
     .ratio-btn .label { font-weight: 700; font-size: 1rem; }
     .ratio-btn .desc { font-size: 0.72rem; color: #888; margin-top: 2px; }
 
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 14px;
-    }
+    .row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
     .row label { font-size: 0.88rem; color: #aaa; flex: 1; }
-    input[type=range] {
-      flex: 2;
-      accent-color: #5a8fff;
-    }
+    input[type=range] { flex: 2; accent-color: #5a8fff; }
     .row span { font-size: 0.88rem; color: #ccc; width: 36px; text-align: right; }
 
-    .preview-wrap {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .preview-box {
-      flex: 1;
-      min-width: 200px;
-    }
-    .preview-box p {
-      font-size: 0.78rem;
-      color: #666;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .preview-box canvas, .preview-box video {
-      width: 100%;
-      border-radius: 8px;
-      background: #111;
-      display: block;
-    }
+    .preview-wrap { display: flex; gap: 16px; flex-wrap: wrap; }
+    .preview-box { flex: 1; min-width: 200px; }
+    .preview-box p { font-size: 0.78rem; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .preview-box canvas, .preview-box video { width: 100%; border-radius: 8px; background: #111; display: block; }
 
-    #progressWrap {
-      display: none;
-      margin-top: 16px;
-    }
-    .progress-bar-bg {
-      background: #222;
-      border-radius: 8px;
-      height: 8px;
-      overflow: hidden;
-    }
+    #progressWrap { display: none; margin-top: 16px; }
+    .progress-bar-bg { background: #222; border-radius: 8px; height: 8px; overflow: hidden; }
     .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #5a8fff, #a78bfa);
-      border-radius: 8px;
-      transition: width 0.1s;
-      width: 0%;
+      height: 100%; background: linear-gradient(90deg, #5a8fff, #a78bfa);
+      border-radius: 8px; transition: width 0.1s; width: 0%;
     }
     #progressLabel { font-size: 0.8rem; color: #888; margin-top: 6px; }
 
     .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
     button {
-      padding: 12px 22px;
-      border: none;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
+      padding: 12px 22px; border: none; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
       transition: opacity 0.15s, transform 0.1s;
     }
     button:active { transform: scale(0.97); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    #processBtn {
-      background: linear-gradient(135deg, #5a8fff, #a78bfa);
-      color: #fff;
-      flex: 1;
-    }
-    #downloadBtn {
-      background: #2a2a2a;
-      color: #ccc;
-      border: 1px solid #3a3a3a;
-    }
-    #resetBtn {
-      background: #2a2a2a;
-      color: #ccc;
-      border: 1px solid #3a3a3a;
-    }
+    #processBtn { background: linear-gradient(135deg, #5a8fff, #a78bfa); color: #fff; flex: 1; }
+    #downloadBtn { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; }
+    #resetBtn    { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; }
 
-    #status {
-      font-size: 0.82rem;
-      color: #888;
-      margin-top: 10px;
-      min-height: 18px;
-    }
+    #status { font-size: 0.82rem; color: #888; margin-top: 10px; min-height: 18px; }
     #status.error { color: #ff6b6b; }
-    #status.ok { color: #6bffb8; }
+    #status.ok    { color: #6bffb8; }
 
     #srcVideo { display: none; }
     #offCanvas { display: none; }
 
-    footer {
-      margin-top: 32px;
-      font-size: 0.75rem;
-      color: #444;
-      text-align: center;
-    }
+    footer { margin-top: 32px; font-size: 0.75rem; color: #444; text-align: center; }
     footer a { color: #5a8fff; text-decoration: none; }
   </style>
 </head>
@@ -218,32 +127,20 @@
 <div class="card">
   <div class="card-title">출력 비율</div>
   <div class="ratio-group">
-    <div class="ratio-btn active" data-ratio="9:16">
-      <div class="label">9:16</div>
-      <div class="desc">세로형 숏츠/릴스</div>
-    </div>
-    <div class="ratio-btn" data-ratio="1:1">
-      <div class="label">1:1</div>
-      <div class="desc">정사각형</div>
-    </div>
-    <div class="ratio-btn" data-ratio="4:5">
-      <div class="label">4:5</div>
-      <div class="desc">인스타그램</div>
-    </div>
+    <div class="ratio-btn active" data-ratio="9:16"><div class="label">9:16</div><div class="desc">세로형 숏츠/릴스</div></div>
+    <div class="ratio-btn" data-ratio="1:1"><div class="label">1:1</div><div class="desc">정사각형</div></div>
+    <div class="ratio-btn" data-ratio="4:5"><div class="label">4:5</div><div class="desc">인스타그램</div></div>
   </div>
-
   <div class="row">
-    <label>여백 미세조정</label>
+    <label>여백 (패딩)</label>
     <input type="range" id="paddingRange" min="0" max="40" value="10" step="1" />
     <span id="paddingVal">10%</span>
   </div>
-
   <div class="row">
-    <label>포즈 스무딩 (프레임 평균)</label>
+    <label>카메라 안정화 (1=빠름 / 30=안정)</label>
     <input type="range" id="smoothRange" min="1" max="30" value="10" step="1" />
-    <span id="smoothVal">10f</span>
+    <span id="smoothVal">10</span>
   </div>
-
   <div class="row">
     <label>출력 높이(px)</label>
     <input type="range" id="heightRange" min="480" max="1920" value="1080" step="60" />
@@ -254,25 +151,16 @@
 <div class="card" id="previewCard" style="display:none">
   <div class="card-title">미리보기</div>
   <div class="preview-wrap">
-    <div class="preview-box">
-      <p>원본</p>
-      <video id="srcVideo" muted playsinline></video>
-    </div>
-    <div class="preview-box">
-      <p>크롭 결과</p>
-      <canvas id="previewCanvas"></canvas>
-    </div>
+    <div class="preview-box"><p>원본</p><video id="srcVideo" muted playsinline></video></div>
+    <div class="preview-box"><p>크롭 결과</p><canvas id="previewCanvas"></canvas></div>
   </div>
 </div>
 
 <div class="card">
   <div id="progressWrap">
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progressFill"></div>
-    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
     <div id="progressLabel">준비 중...</div>
   </div>
-
   <div class="btn-row">
     <button id="processBtn" disabled>처리 시작</button>
     <button id="downloadBtn" disabled>다운로드</button>
@@ -282,7 +170,6 @@
 </div>
 
 <canvas id="offCanvas"></canvas>
-<canvas id="poseCanvas" style="display:none"></canvas>
 
 <footer>
   MediaPipe Pose · 모든 처리는 브라우저에서만 이루어집니다 ·
@@ -295,11 +182,7 @@
 <script>
 'use strict';
 
-let videoFile = null;
-let selectedRatio = '9:16';
-let outputBlob = null;
-let isProcessing = false;
-
+let videoFile = null, selectedRatio = '9:16', outputBlob = null, isProcessing = false;
 const ratioMap = { '9:16': 9/16, '1:1': 1, '4:5': 4/5 };
 
 const dropzone     = document.getElementById('dropzone');
@@ -325,8 +208,7 @@ const heightVal    = document.getElementById('heightVal');
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
 dropzone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropzone.classList.remove('drag-over');
+  e.preventDefault(); dropzone.classList.remove('drag-over');
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('video/')) loadFile(f);
 });
@@ -342,12 +224,11 @@ document.querySelectorAll('.ratio-btn').forEach(btn => {
 });
 
 paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; });
-smoothRange.addEventListener('input', () => { smoothVal.textContent = smoothRange.value + 'f'; });
+smoothRange.addEventListener('input', () => { smoothVal.textContent = smoothRange.value; });
 heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; });
 
 function loadFile(file) {
-  videoFile = file;
-  outputBlob = null;
+  videoFile = file; outputBlob = null;
   downloadBtn.disabled = true;
   srcVideo.src = URL.createObjectURL(file);
   srcVideo.load();
@@ -365,14 +246,12 @@ function drawPreviewFrame() {
   if (!srcVideo.videoWidth) return;
   const ratio = ratioMap[selectedRatio];
   const svw = srcVideo.videoWidth, svh = srcVideo.videoHeight;
-  const outH = parseInt(heightRange.value);
-  const outW = Math.round(outH * ratio);
+  const outH = parseInt(heightRange.value), outW = Math.round(outH * ratio);
   let cropW = svh * ratio, cropH = svh;
   if (cropW > svw) { cropW = svw; cropH = svw / ratio; }
   const sx = (svw - cropW) / 2, sy = (svh - cropH) / 2;
   previewCanvas.width = outW; previewCanvas.height = outH;
-  const ctx = previewCanvas.getContext('2d');
-  ctx.drawImage(srcVideo, sx, sy, cropW, cropH, 0, 0, outW, outH);
+  previewCanvas.getContext('2d').drawImage(srcVideo, sx, sy, cropW, cropH, 0, 0, outW, outH);
 }
 
 function getCropBox(landmarks, vidW, vidH, ratio, padding) {
@@ -380,40 +259,22 @@ function getCropBox(landmarks, vidW, vidH, ratio, padding) {
   if (!pts.length) return null;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const l of pts) {
-    if (l.x < minX) minX = l.x;
-    if (l.x > maxX) maxX = l.x;
-    if (l.y < minY) minY = l.y;
-    if (l.y > maxY) maxY = l.y;
+    if (l.x < minX) minX = l.x; if (l.x > maxX) maxX = l.x;
+    if (l.y < minY) minY = l.y; if (l.y > maxY) maxY = l.y;
   }
   const cx = (minX + maxX) / 2 * vidW;
   const cy = (minY + maxY) / 2 * vidH;
-
-  // person occupies center cell of 3x3 grid → crop = 3x person height
   const personH = (maxY - minY) * vidH;
   let cropH = personH * 3 * (1 + padding * 0.1);
   let cropW = cropH * ratio;
-
   if (cropW > vidW) { cropW = vidW; cropH = cropW / ratio; }
   if (cropH > vidH) { cropH = vidH; cropW = cropH * ratio; }
-  let sx = cx - cropW / 2;
-  let sy = cy - cropH / 2;
-  sx = Math.max(0, Math.min(sx, vidW - cropW));
-  sy = Math.max(0, Math.min(sy, vidH - cropH));
+  let sx = Math.max(0, Math.min(cx - cropW / 2, vidW - cropW));
+  let sy = Math.max(0, Math.min(cy - cropH / 2, vidH - cropH));
   return { sx, sy, cropW, cropH };
 }
 
-function smoothBoxes(buf) {
-  if (!buf.length) return null;
-  const r = { sx: 0, sy: 0, cropW: 0, cropH: 0 };
-  for (const b of buf) { r.sx += b.sx; r.sy += b.sy; r.cropW += b.cropW; r.cropH += b.cropH; }
-  const n = buf.length;
-  return { sx: r.sx/n, sy: r.sy/n, cropW: r.cropW/n, cropH: r.cropH/n };
-}
-
-processBtn.addEventListener('click', () => {
-  if (!videoFile || isProcessing) return;
-  startProcessing();
-});
+processBtn.addEventListener('click', () => { if (!videoFile || isProcessing) return; startProcessing(); });
 
 async function startProcessing() {
   isProcessing = true;
@@ -424,126 +285,123 @@ async function startProcessing() {
 
   const ratio = ratioMap[selectedRatio];
   const padding = parseInt(paddingRange.value) / 100;
-  const smoothN = parseInt(smoothRange.value);
+  const emaAlpha = 0.8 / parseInt(smoothRange.value); // 1=빠름(0.8), 30=안정(0.027)
   const outH = parseInt(heightRange.value);
   const outW = Math.round(outH * ratio);
+  const outputFps = 30;
+  const analysisFps = 6;
 
   const vid = document.createElement('video');
   vid.src = URL.createObjectURL(videoFile);
-  vid.muted = true;
-  vid.playsInline = true;
+  vid.muted = true; vid.playsInline = true;
   await new Promise(r => { vid.onloadedmetadata = r; });
 
   const vidW = vid.videoWidth, vidH = vid.videoHeight;
-  const fps = 30;
   const duration = vid.duration;
-  const totalFrames = Math.ceil(duration * fps);
+  const totalAnalysis = Math.ceil(duration * analysisFps);
 
-  const poseInputCanvas = document.createElement('canvas');
-  poseInputCanvas.width = vidW; poseInputCanvas.height = vidH;
-  const poseCtx = poseInputCanvas.getContext('2d');
+  const poseCanvas = document.createElement('canvas');
+  poseCanvas.width = vidW; poseCanvas.height = vidH;
+  const poseCtx = poseCanvas.getContext('2d');
 
   offCanvas.width = outW; offCanvas.height = outH;
   const outCtx = offCanvas.getContext('2d');
 
-  // Init MediaPipe Pose
   let poseLandmarks = null;
-  const pose = new Pose({
-    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
-  });
-  pose.setOptions({
-    modelComplexity: 1,
-    smoothLandmarks: true,
-    enableSegmentation: false,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
-  pose.onResults(results => {
-    poseLandmarks = results.poseLandmarks || null;
-  });
+  const pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+  pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false,
+    minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  pose.onResults(r => { poseLandmarks = r.poseLandmarks || null; });
   await pose.initialize();
 
-  // Phase 1: 포즈 분석 - 모든 프레임의 crop box 수집 (속도 무관)
+  // Phase 1: 6fps 포즈 분석 + EMA 스무딩
   setStatus('포즈 분석 중... (1/2)', '');
-  const boxBuf = [];
-  const allBoxes = [];
+  const keyTimes = [], smoothedKeys = [];
+  let ema = null;
 
-  for (let fi = 0; fi < totalFrames; fi++) {
-    const t = fi / fps;
-    if (t > duration) break;
-
+  for (let ai = 0; ai < totalAnalysis; ai++) {
+    const t = Math.min(ai / analysisFps, duration - 0.01);
     vid.currentTime = t;
     await new Promise(r => { vid.onseeked = r; });
     poseCtx.drawImage(vid, 0, 0, vidW, vidH);
-    await pose.send({ image: poseInputCanvas });
+    await pose.send({ image: poseCanvas });
 
-    let box = null;
-    if (poseLandmarks) {
-      box = getCropBox(poseLandmarks, vidW, vidH, ratio, padding);
-    }
+    let box = poseLandmarks ? getCropBox(poseLandmarks, vidW, vidH, ratio, padding) : null;
     if (!box) {
-      let cropW = vidH * ratio, cropH = vidH;
-      if (cropW > vidW) { cropW = vidW; cropH = cropW / ratio; }
-      box = { sx: (vidW - cropW) / 2, sy: (vidH - cropH) / 2, cropW, cropH };
+      let cw = vidH * ratio, ch = vidH;
+      if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+      box = { sx: (vidW - cw) / 2, sy: (vidH - ch) / 2, cropW: cw, cropH: ch };
     }
-    boxBuf.push(box);
-    if (boxBuf.length > smoothN) boxBuf.shift();
-    allBoxes.push(smoothBoxes(boxBuf) || box);
 
-    const pct = ((fi + 1) / totalFrames * 50).toFixed(1);
+    ema = ema ? {
+      sx:    ema.sx    + emaAlpha * (box.sx    - ema.sx),
+      sy:    ema.sy    + emaAlpha * (box.sy    - ema.sy),
+      cropW: ema.cropW + emaAlpha * (box.cropW - ema.cropW),
+      cropH: ema.cropH + emaAlpha * (box.cropH - ema.cropH),
+    } : { ...box };
+
+    keyTimes.push(t);
+    smoothedKeys.push({ ...ema });
+
+    const pct = ((ai + 1) / totalAnalysis * 50).toFixed(1);
     progressFill.style.width = pct + '%';
-    progressLabel.textContent = `포즈 분석 중... ${pct}% (${fi+1}/${totalFrames} 프레임)`;
+    progressLabel.textContent = `포즈 분석 중... ${pct}% (${ai+1}/${totalAnalysis})`;
     await new Promise(r => setTimeout(r, 0));
   }
 
   pose.close();
 
-  // Phase 2: 인코딩 - 정확한 fps 간격으로 재생하며 녹화 (출력 길이 = 입력 길이)
+  function getBoxAt(t) {
+    if (t <= keyTimes[0]) return smoothedKeys[0];
+    if (t >= keyTimes[keyTimes.length - 1]) return smoothedKeys[smoothedKeys.length - 1];
+    let lo = 0, hi = keyTimes.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (keyTimes[mid] <= t) lo = mid; else hi = mid; }
+    const f = (t - keyTimes[lo]) / (keyTimes[hi] - keyTimes[lo]);
+    const a = smoothedKeys[lo], b = smoothedKeys[hi];
+    return { sx: a.sx+f*(b.sx-a.sx), sy: a.sy+f*(b.sy-a.sy),
+             cropW: a.cropW+f*(b.cropW-a.cropW), cropH: a.cropH+f*(b.cropH-a.cropH) };
+  }
+
+  // Phase 2: 실시간 재생 + rAF 렌더링 (끓림 없음)
   setStatus('영상 인코딩 중... (2/2)', '');
   let stream, recorder, chunks = [];
   try {
-    stream = offCanvas.captureStream(fps);
-    recorder = new MediaRecorder(stream, {
-      mimeType: getSupportedMimeType(),
-      videoBitsPerSecond: 8_000_000,
-    });
+    stream = offCanvas.captureStream(outputFps);
+    recorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType(), videoBitsPerSecond: 12_000_000 });
   } catch (e) {
     setStatus('MediaRecorder 지원 안 됨: ' + e.message, 'error');
     isProcessing = false; processBtn.disabled = false;
     return;
   }
   recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+  vid.currentTime = 0;
+  await new Promise(r => { vid.onseeked = r; });
   recorder.start();
 
-  for (let fi = 0; fi < allBoxes.length; fi++) {
-    vid.currentTime = fi / fps;
-    await new Promise(r => { vid.onseeked = r; });
-
-    const smoothed = allBoxes[fi];
-    outCtx.drawImage(vid, smoothed.sx, smoothed.sy, smoothed.cropW, smoothed.cropH, 0, 0, outW, outH);
-
-    if (fi % 5 === 0) {
+  await new Promise(resolve => {
+    vid.onended = () => { recorder.stop(); resolve(); };
+    function drawFrame() {
+      if (vid.ended) return;
+      const box = getBoxAt(vid.currentTime);
+      outCtx.drawImage(vid, box.sx, box.sy, box.cropW, box.cropH, 0, 0, outW, outH);
       previewCanvas.width = outW; previewCanvas.height = outH;
       previewCanvas.getContext('2d').drawImage(offCanvas, 0, 0);
+      const pct = (50 + Math.min(vid.currentTime / duration, 1) * 50).toFixed(1);
+      progressFill.style.width = pct + '%';
+      progressLabel.textContent = `인코딩 중... ${pct}%`;
+      requestAnimationFrame(drawFrame);
     }
+    vid.play().then(() => requestAnimationFrame(drawFrame));
+  });
 
-    const pct = (50 + (fi + 1) / allBoxes.length * 50).toFixed(1);
-    progressFill.style.width = pct + '%';
-    progressLabel.textContent = `인코딩 중... ${pct}% (${fi+1}/${allBoxes.length} 프레임)`;
-
-    // 정확한 프레임 간격 유지 → 출력 길이 = 입력 길이
-    await new Promise(r => setTimeout(r, 1000 / fps));
-  }
-
-  recorder.stop();
   await new Promise(r => { recorder.onstop = r; });
-
   outputBlob = new Blob(chunks, { type: recorder.mimeType });
   vid.src = '';
 
   progressFill.style.width = '100%';
   progressLabel.textContent = '완료!';
-  setStatus(`처리 완료 · ${(outputBlob.size / 1024 / 1024).toFixed(1)} MB`, 'ok');
+  setStatus(`처리 완료 · ${(outputBlob.size/1024/1024).toFixed(1)} MB`, 'ok');
   downloadBtn.disabled = false;
   processBtn.disabled = false;
   isProcessing = false;
@@ -569,22 +427,11 @@ resetBtn.addEventListener('click', () => {
   setStatus('');
 });
 
-function setStatus(msg, type) {
-  statusEl.textContent = msg;
-  statusEl.className = type || '';
-}
+function setStatus(msg, type) { statusEl.textContent = msg; statusEl.className = type || ''; }
 
 function getSupportedMimeType() {
-  const candidates = [
-    'video/mp4;codecs=avc1',
-    'video/mp4',
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ];
-  for (const t of candidates) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
-  }
+  const candidates = ['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for (const t of candidates) { if (MediaRecorder.isTypeSupported(t)) return t; }
   return '';
 }
 </script>
