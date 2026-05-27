@@ -1,4 +1,4 @@
-import os, uuid, shutil, threading, subprocess, traceback
+import os, uuid, shutil, threading, subprocess, traceback, json
 from pathlib import Path
 import cv2
 import mediapipe as mp
@@ -18,6 +18,37 @@ jobs_lock = threading.Lock()
 job_semaphore = threading.Semaphore(2)
 
 RATIO_MAP = {"9:16": 9/16, "1:1": 1.0, "4:5": 4/5}
+
+
+def get_video_rotation(path):
+    """Return CW degrees to rotate frames so they display correctly."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", path],
+            capture_output=True, text=True, timeout=30,
+        )
+        data = json.loads(r.stdout)
+        for s in data.get("streams", []):
+            if s.get("codec_type") != "video":
+                continue
+            for sd in s.get("side_data_list", []):
+                if "rotation" in sd:
+                    return (-int(sd["rotation"])) % 360
+            rotate = int(s.get("tags", {}).get("rotate", "0"))
+            return rotate % 360
+    except Exception:
+        pass
+    return 0
+
+
+def rotate_frame(frame, cw):
+    if cw == 90:
+        return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    if cw == 270:
+        return cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    if cw == 180:
+        return cv2.rotate(frame, cv2.ROTATE_180)
+    return frame
 
 
 def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
@@ -131,6 +162,10 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             cap.release()
             duration = total_frames / input_fps
 
+            rotation = get_video_rotation(input_path)
+            if rotation in (90, 270):
+                vid_w, vid_h = vid_h, vid_w
+
             pose_w = min(vid_w, 1280)
             pose_h = round(pose_w * vid_h / vid_w)
 
@@ -169,6 +204,7 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 ret, frame = cap.read()
                 if not ret:
                     break
+                frame = rotate_frame(frame, rotation)
 
                 small = cv2.resize(frame, (pose_w, pose_h), interpolation=cv2.INTER_AREA)
                 rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
@@ -228,6 +264,7 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 ret, frame = cap.read()
                 if not ret:
                     break
+                frame = rotate_frame(frame, rotation)
 
                 t = frame_idx / input_fps
                 b = get_box_at(t, key_times, smoothed_keys)
