@@ -1,4 +1,4 @@
-import os, uuid, shutil, threading, subprocess, traceback
+import os, uuid, shutil, threading, subprocess, traceback, json
 from pathlib import Path
 import cv2
 import mediapipe as mp
@@ -18,6 +18,37 @@ jobs_lock = threading.Lock()
 job_semaphore = threading.Semaphore(2)
 
 RATIO_MAP = {"9:16": 9/16, "1:1": 1.0, "4:5": 4/5}
+
+
+def get_video_rotation(path):
+    """Return CW degrees to rotate frames so they display correctly."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", path],
+            capture_output=True, text=True, timeout=30,
+        )
+        data = json.loads(r.stdout)
+        for s in data.get("streams", []):
+            if s.get("codec_type") != "video":
+                continue
+            for sd in s.get("side_data_list", []):
+                if "rotation" in sd:
+                    return (-int(sd["rotation"])) % 360
+            rotate = int(s.get("tags", {}).get("rotate", "0"))
+            return rotate % 360
+    except Exception:
+        pass
+    return 0
+
+
+def rotate_frame(frame, cw):
+    if cw == 90:
+        return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    if cw == 270:
+        return cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    if cw == 180:
+        return cv2.rotate(frame, cv2.ROTATE_180)
+    return frame
 
 
 def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
@@ -42,8 +73,8 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
     cx = (px1 + px2) / 2
     cy = (py1 + py2) / 2
 
-    # Crop = 2x padded person height (person fills ~50% of frame)
-    crop_h = padded_h * 2
+    # Crop = 2.5x padded person height (person fills ~40% of frame)
+    crop_h = padded_h * 2.5
     crop_w = crop_h * ratio
 
     # Ensure crop is wide enough to contain the person
@@ -69,15 +100,17 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
 
 
 def constrain_to_person(sx, sy, cw, ch, px1, py1, px2, py2, vid_w, vid_h):
-    """Shift crop box just enough so person bounding box is fully inside."""
-    if px1 < sx:
-        sx = px1
-    if px2 > sx + cw:
-        sx = px2 - cw
-    if py1 < sy:
-        sy = py1
-    if py2 > sy + ch:
-        sy = py2 - ch
+    """Shift crop box so person bounding box stays inside with minimum margin."""
+    margin_x = cw * 0.05
+    margin_y = ch * 0.08
+    if px1 < sx + margin_x:
+        sx = px1 - margin_x
+    if px2 > sx + cw - margin_x:
+        sx = px2 - cw + margin_x
+    if py1 < sy + margin_y:
+        sy = py1 - margin_y
+    if py2 > sy + ch - margin_y:
+        sy = py2 - ch + margin_y
     sx = max(0.0, min(sx, vid_w - cw))
     sy = max(0.0, min(sy, vid_h - ch))
     return sx, sy
@@ -129,6 +162,10 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             cap.release()
             duration = total_frames / input_fps
 
+            rotation = get_video_rotation(input_path)
+            if rotation in (90, 270):
+                vid_w, vid_h = vid_h, vid_w
+
             pose_w = min(vid_w, 1280)
             pose_h = round(pose_w * vid_h / vid_w)
 
@@ -167,6 +204,7 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 ret, frame = cap.read()
                 if not ret:
                     break
+                frame = rotate_frame(frame, rotation)
 
                 small = cv2.resize(frame, (pose_w, pose_h), interpolation=cv2.INTER_AREA)
                 rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
@@ -200,6 +238,23 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
             if not key_times:
                 raise RuntimeError("영상에서 프레임을 읽을 수 없습니다")
 
+            # Lock zoom: use 90th-percentile crop size for all frames so zoom never changes
+            fixed_cw = float(np.percentile([k["cw"] for k in smoothed_keys], 90))
+            fixed_ch = float(np.percentile([k["ch"] for k in smoothed_keys], 90))
+            if fixed_cw > vid_w:
+                fixed_cw = float(vid_w); fixed_ch = fixed_cw / ratio
+            if fixed_ch > vid_h:
+                fixed_ch = float(vid_h); fixed_cw = fixed_ch * ratio
+            for i, (key, pkey) in enumerate(zip(smoothed_keys, person_keys)):
+                cx = key["sx"] + key["cw"] / 2
+                cy = key["sy"] + key["ch"] / 2
+                sx = max(0.0, min(cx - fixed_cw / 2, vid_w - fixed_cw))
+                sy = max(0.0, min(cy - fixed_ch / 2, vid_h - fixed_ch))
+                px1, py1 = pkey["sx"], pkey["sy"]
+                px2, py2 = px1 + pkey["cw"], py1 + pkey["ch"]
+                sx, sy = constrain_to_person(sx, sy, fixed_cw, fixed_ch, px1, py1, px2, py2, vid_w, vid_h)
+                smoothed_keys[i] = {"sx": sx, "sy": sy, "cw": fixed_cw, "ch": fixed_ch}
+
             update("encoding", 45, "인코딩 중...")
 
             pixels = out_w * out_h
@@ -226,6 +281,7 @@ def process_job(job_id: str, input_path: str, ratio_str: str, padding: float, em
                 ret, frame = cap.read()
                 if not ret:
                     break
+                frame = rotate_frame(frame, rotation)
 
                 t = frame_idx / input_fps
                 b = get_box_at(t, key_times, smoothed_keys)

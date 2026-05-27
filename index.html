@@ -74,34 +74,6 @@
     #dropzone span { color: #5a8fff; }
     #fileInput { display: none; }
 
-    /* Ratio selector */
-    .ratio-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .ratio-btn {
-      flex: 1;
-      min-width: 80px;
-      background: #222;
-      border: 2px solid #333;
-      border-radius: 10px;
-      color: #ccc;
-      padding: 12px 8px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-      font-size: 0.88rem;
-    }
-    .ratio-btn:hover { border-color: #555; color: #fff; }
-    .ratio-btn.active {
-      border-color: #5a8fff;
-      background: rgba(90,143,255,0.12);
-      color: #fff;
-    }
-    .ratio-btn .label { font-weight: 700; font-size: 1rem; }
-    .ratio-btn .desc { font-size: 0.72rem; color: #888; margin-top: 2px; }
-
     /* Padding option */
     .row {
       display: flex;
@@ -258,21 +230,7 @@
 
 <!-- 출력 옵션 -->
 <div class="card">
-  <div class="card-title">출력 비율</div>
-  <div class="ratio-group">
-    <div class="ratio-btn active" data-ratio="9:16">
-      <div class="label">9:16</div>
-      <div class="desc">세로형 숏츠/릴스</div>
-    </div>
-    <div class="ratio-btn" data-ratio="1:1">
-      <div class="label">1:1</div>
-      <div class="desc">정사각형</div>
-    </div>
-    <div class="ratio-btn" data-ratio="4:5">
-      <div class="label">4:5</div>
-      <div class="desc">인스타그램</div>
-    </div>
-  </div>
+  <div class="card-title">출력 옵션 <span style="font-size:0.8rem;color:#888;font-weight:400">비율 4:5 고정</span></div>
 
   <div class="row">
     <label>여백 (패딩)</label>
@@ -288,8 +246,8 @@
 
   <div class="row">
     <label>출력 높이(px)</label>
-    <input type="range" id="heightRange" min="480" max="3840" value="1920" step="120" />
-    <span id="heightVal" style="width:50px">1920</span>
+    <input type="range" id="heightRange" min="480" max="3840" value="1350" step="120" />
+    <span id="heightVal" style="width:50px">1350</span>
   </div>
 </div>
 
@@ -338,7 +296,7 @@ const API_BASE = (window.location.hostname === 'chuneeeee.github.io' ||
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let videoFile = null;
-let selectedRatio = '9:16';
+const selectedRatio = '4:5';
 let outputJobId = null;
 let isProcessing = false;
 
@@ -376,25 +334,11 @@ dropzone.addEventListener('drop', e => {
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
 
-// ── Ratio buttons ─────────────────────────────────────────────────────────────
-const fhdHeightMap = { '9:16': 1920, '4:5': 1350, '1:1': 1080 };
-
-document.querySelectorAll('.ratio-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedRatio = btn.dataset.ratio;
-    const h = fhdHeightMap[selectedRatio];
-    heightRange.value = h;
-    heightVal.textContent = h;
-    if (srcVideo.videoWidth) drawPoseOverlay(lastLandmarks);
-  });
-});
 
 // ── Range inputs ──────────────────────────────────────────────────────────────
 paddingRange.addEventListener('input', () => { paddingVal.textContent = paddingRange.value + '%'; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
 smoothRange.addEventListener('input', () => { smoothVal.textContent = smoothRange.value + 'f'; });
-heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; });
+heightRange.addEventListener('input', () => { heightVal.textContent = heightRange.value; if (lastLandmarks !== undefined && srcVideo.videoWidth) drawPoseOverlay(lastLandmarks); });
 
 // ── MediaPipe Pose (preview only) ────────────────────────────────────────────
 const POSE_CONNECTIONS = [
@@ -416,80 +360,104 @@ async function initPose() {
   await poseDetector.initialize();
 }
 
+function computeCropBox(vidW, vidH, landmarks) {
+  const ratio = 4 / 5;
+  const padding = parseInt(paddingRange.value) / 100;
+  let sx, sy, cw, ch;
+
+  if (landmarks) {
+    const pts = landmarks.filter(l => (l.visibility ?? 0) > 0.3);
+    if (pts.length) {
+      const xs = pts.map(l => l.x), ys = pts.map(l => l.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const pw = (maxX - minX) * vidW, ph = (maxY - minY) * vidH;
+      const px1 = Math.max(0, minX * vidW - pw * padding);
+      const px2 = Math.min(vidW, maxX * vidW + pw * padding);
+      const py1 = Math.max(0, minY * vidH - ph * padding);
+      const py2 = Math.min(vidH, maxY * vidH + ph * padding);
+      const padH = py2 - py1, padW = px2 - px1;
+      ch = padH * 2.5; cw = ch * ratio;
+      if (cw < padW) { cw = padW; ch = cw / ratio; }
+      if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+      if (ch > vidH) { ch = vidH; cw = ch * ratio; }
+      sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
+      sy = Math.max(0, Math.min((py1 + py2) / 2 - ch / 2, vidH - ch));
+      return { sx, sy, cw, ch };
+    }
+  }
+  // fallback: center
+  cw = vidH * ratio; ch = vidH;
+  if (cw > vidW) { cw = vidW; ch = cw / ratio; }
+  return { sx: (vidW - cw) / 2, sy: (vidH - ch) / 2, cw, ch };
+}
+
 function drawPoseOverlay(landmarks) {
   const w = srcVideo.videoWidth, h = srcVideo.videoHeight;
   poseOverlay.width = w; poseOverlay.height = h;
   const ctx = poseOverlay.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  if (!landmarks) {
-    poseBadge.textContent = '포즈 감지 안 됨';
-    poseBadge.className = 'none';
-    // fallback: center crop box
-    drawCropBoxOnOverlay(ctx, w, h, null);
-    return;
-  }
+  poseBadge.textContent = landmarks ? '포즈 감지됨' : '포즈 감지 안 됨';
+  poseBadge.className = landmarks ? 'detected' : 'none';
 
-  poseBadge.textContent = '포즈 감지됨';
-  poseBadge.className = 'detected';
+  const { sx, sy, cw, ch } = computeCropBox(w, h, landmarks);
 
-  // skeleton connections
-  ctx.strokeStyle = 'rgba(90,143,255,0.85)';
-  ctx.lineWidth = Math.max(2, w / 400);
-  for (const [a, b] of POSE_CONNECTIONS) {
-    const la = landmarks[a], lb = landmarks[b];
-    if ((la?.visibility ?? 0) > 0.3 && (lb?.visibility ?? 0) > 0.3) {
-      ctx.beginPath();
-      ctx.moveTo(la.x * w, la.y * h);
-      ctx.lineTo(lb.x * w, lb.y * h);
-      ctx.stroke();
-    }
-  }
-  // dots
-  const r = Math.max(3, w / 300);
-  for (const l of landmarks) {
-    if ((l.visibility ?? 0) > 0.3) {
-      ctx.beginPath();
-      ctx.arc(l.x * w, l.y * h, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-    }
-  }
+  // Dim everything outside the crop box
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.rect(sx, sy, cw, ch);
+  ctx.fill('evenodd');
 
-  drawCropBoxOnOverlay(ctx, w, h, landmarks);
-}
-
-function drawCropBoxOnOverlay(ctx, vidW, vidH, landmarks) {
-  const ratio = ratioMap[selectedRatio];
-  const padding = parseInt(paddingRange.value) / 100;
-  let sx, sy, cw, ch;
-
+  // Draw skeleton clipped to crop area so it's visible against the video
   if (landmarks) {
-    const pts = landmarks.filter(l => (l.visibility ?? 0) > 0.3);
-    const xs = pts.map(l => l.x), ys = pts.map(l => l.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const pw = (maxX - minX) * vidW, ph = (maxY - minY) * vidH;
-    const px1 = Math.max(0, minX * vidW - pw * padding);
-    const px2 = Math.min(vidW, maxX * vidW + pw * padding);
-    const py1 = Math.max(0, minY * vidH - ph * padding);
-    const py2 = Math.min(vidH, maxY * vidH + ph * padding);
-    const padW = px2 - px1, padH = py2 - py1;
-    ch = padH * 2; cw = ch * ratio;
-    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
-    if (ch > vidH) { ch = vidH; cw = ch * ratio; }
-    sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
-    sy = Math.max(0, Math.min((py1 + py2) / 2 - ch / 2, vidH - ch));
-  } else {
-    cw = vidH * ratio; ch = vidH;
-    if (cw > vidW) { cw = vidW; ch = cw / ratio; }
-    sx = (vidW - cw) / 2; sy = (vidH - ch) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sx, sy, cw, ch);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(90,143,255,0.9)';
+    ctx.lineWidth = Math.max(2, w / 400);
+    for (const [a, b] of POSE_CONNECTIONS) {
+      const la = landmarks[a], lb = landmarks[b];
+      if ((la?.visibility ?? 0) > 0.3 && (lb?.visibility ?? 0) > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(la.x * w, la.y * h);
+        ctx.lineTo(lb.x * w, lb.y * h);
+        ctx.stroke();
+      }
+    }
+    const r = Math.max(3, w / 300);
+    for (const l of landmarks) {
+      if ((l.visibility ?? 0) > 0.3) {
+        ctx.beginPath();
+        ctx.arc(l.x * w, l.y * h, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
-  ctx.strokeStyle = '#5a8fff';
-  ctx.lineWidth = Math.max(2, vidW / 300);
+  // Crop box border
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = Math.max(3, w / 250);
   ctx.setLineDash([]);
   ctx.strokeRect(sx, sy, cw, ch);
+
+  // Output size label inside the crop box
+  const outH = parseInt(heightRange.value);
+  const outW = Math.round(outH * 4 / 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  const fontSize = Math.max(14, w / 40);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const label = `${outW} × ${outH}`;
+  const tw = ctx.measureText(label).width;
+  const lx = sx + (cw - tw) / 2, ly = sy + ch - fontSize * 0.6;
+  ctx.fillRect(lx - 8, ly - fontSize, tw + 16, fontSize * 1.4);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, lx, ly);
 }
 
 // ── Load file ─────────────────────────────────────────────────────────────────
