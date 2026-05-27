@@ -418,7 +418,7 @@ async function startProcessing() {
   outputJobId = null;
   progressWrap.style.display = '';
   progressFill.style.width = '0%';
-  progressLabel.textContent = '서버에 업로드 중...';
+  progressLabel.textContent = '업로드 준비 중...';
   setStatus('업로드 중...', '');
 
   const formData = new FormData();
@@ -430,10 +430,28 @@ async function startProcessing() {
 
   let jobId;
   try {
-    const res = await fetch(`${API_BASE}/process`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error(`서버 오류 ${res.status}`);
-    const data = await res.json();
-    jobId = data.job_id;
+    jobId = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/process`);
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = (e.loaded / e.total * 45).toFixed(0);
+          progressFill.style.width = pct + '%';
+          const mb = (e.loaded / 1024 / 1024).toFixed(0);
+          const total = (e.total / 1024 / 1024).toFixed(0);
+          progressLabel.textContent = `업로드 중... ${pct}% (${mb}/${total}MB)`;
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText).job_id);
+        } else {
+          reject(new Error(`서버 오류 ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('네트워크 오류'));
+      xhr.send(formData);
+    });
     setStatus('서버에서 처리 중...', '');
   } catch (e) {
     setStatus('업로드 실패: ' + e.message, 'error');
