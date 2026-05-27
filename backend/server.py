@@ -43,7 +43,7 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
     cy = (py1 + py2) / 2
 
     # Crop = 2x padded person height (person fills ~50% of frame)
-    crop_h = padded_h * 2
+    crop_h = padded_h * 2.5
     crop_w = crop_h * ratio
 
     # Ensure crop is wide enough to contain the person
@@ -69,15 +69,17 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
 
 
 def constrain_to_person(sx, sy, cw, ch, px1, py1, px2, py2, vid_w, vid_h):
-    """Shift crop box just enough so person bounding box is fully inside."""
-    if px1 < sx:
-        sx = px1
-    if px2 > sx + cw:
-        sx = px2 - cw
-    if py1 < sy:
-        sy = py1
-    if py2 > sy + ch:
-        sy = py2 - ch
+    """Shift crop box so person bounding box stays inside with minimum margin."""
+    margin_x = cw * 0.05
+    margin_y = ch * 0.08
+    if px1 < sx + margin_x:
+        sx = px1 - margin_x
+    if px2 > sx + cw - margin_x:
+        sx = px2 - cw + margin_x
+    if py1 < sy + margin_y:
+        sy = py1 - margin_y
+    if py2 > sy + ch - margin_y:
+        sy = py2 - ch + margin_y
     sx = max(0.0, min(sx, vid_w - cw))
     sy = max(0.0, min(sy, vid_h - ch))
     return sx, sy

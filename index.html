@@ -475,7 +475,7 @@ function drawCropBoxOnOverlay(ctx, vidW, vidH, landmarks) {
     const py1 = Math.max(0, minY * vidH - ph * padding);
     const py2 = Math.min(vidH, maxY * vidH + ph * padding);
     const padW = px2 - px1, padH = py2 - py1;
-    ch = padH * 2; cw = ch * ratio;
+    ch = padH * 2.5; cw = ch * ratio;
     if (cw > vidW) { cw = vidW; ch = cw / ratio; }
     if (ch > vidH) { ch = vidH; cw = ch * ratio; }
     sx = Math.max(0, Math.min((px1 + px2) / 2 - cw / 2, vidW - cw));
