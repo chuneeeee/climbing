@@ -73,8 +73,8 @@ def get_crop_box(landmarks, vid_w, vid_h, ratio, padding):
     cx = (px1 + px2) / 2
     cy = (py1 + py2) / 2
 
-    # Crop = 3.5x padded person height (person fills ~29% of frame)
-    crop_h = padded_h * 3.5
+    # Crop = 2.5x padded person height (person fills ~40% of frame)
+    crop_h = padded_h * 2.5
     crop_w = crop_h * ratio
 
     # Ensure crop is wide enough to contain the person
