@@ -49,7 +49,6 @@
       margin-bottom: 14px;
     }
 
-    /* Drop zone */
     #dropzone {
       border: 2px dashed #333;
       border-radius: 12px;
@@ -67,7 +66,6 @@
     #dropzone span { color: #5a8fff; }
     #fileInput { display: none; }
 
-    /* Ratio selector */
     .ratio-group {
       display: flex;
       gap: 10px;
@@ -95,7 +93,6 @@
     .ratio-btn .label { font-weight: 700; font-size: 1rem; }
     .ratio-btn .desc { font-size: 0.72rem; color: #888; margin-top: 2px; }
 
-    /* Padding option */
     .row {
       display: flex;
       align-items: center;
@@ -109,7 +106,6 @@
     }
     .row span { font-size: 0.88rem; color: #ccc; width: 36px; text-align: right; }
 
-    /* Preview */
     .preview-wrap {
       display: flex;
       gap: 16px;
@@ -133,7 +129,6 @@
       display: block;
     }
 
-    /* Progress */
     #progressWrap {
       display: none;
       margin-top: 16px;
@@ -153,7 +148,6 @@
     }
     #progressLabel { font-size: 0.8rem; color: #888; margin-top: 6px; }
 
-    /* Buttons */
     .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
     button {
       padding: 12px 22px;
@@ -182,7 +176,6 @@
       border: 1px solid #3a3a3a;
     }
 
-    /* Status */
     #status {
       font-size: 0.82rem;
       color: #888;
@@ -192,7 +185,6 @@
     #status.error { color: #ff6b6b; }
     #status.ok { color: #6bffb8; }
 
-    /* hidden helpers */
     #srcVideo { display: none; }
     #offCanvas { display: none; }
 
@@ -210,7 +202,6 @@
 <h1>볼더링 영상 자동 크롭</h1>
 <p class="subtitle">MediaPipe Pose로 사람을 감지해 자동으로 중앙 크롭합니다 · 브라우저 전용, 업로드 없음</p>
 
-<!-- 파일 선택 -->
 <div class="card">
   <div class="card-title">영상 파일 선택</div>
   <div id="dropzone" onclick="document.getElementById('fileInput').click()">
@@ -224,7 +215,6 @@
   <input type="file" id="fileInput" accept="video/*" />
 </div>
 
-<!-- 출력 옵션 -->
 <div class="card">
   <div class="card-title">출력 비율</div>
   <div class="ratio-group">
@@ -243,7 +233,7 @@
   </div>
 
   <div class="row">
-    <label>여백 (패딩)</label>
+    <label>여백 미세조정</label>
     <input type="range" id="paddingRange" min="0" max="40" value="10" step="1" />
     <span id="paddingVal">10%</span>
   </div>
@@ -261,7 +251,6 @@
   </div>
 </div>
 
-<!-- 미리보기 -->
 <div class="card" id="previewCard" style="display:none">
   <div class="card-title">미리보기</div>
   <div class="preview-wrap">
@@ -276,7 +265,6 @@
   </div>
 </div>
 
-<!-- 처리 / 진행 -->
 <div class="card">
   <div id="progressWrap">
     <div class="progress-bar-bg">
@@ -293,7 +281,6 @@
   <div id="status"></div>
 </div>
 
-<!-- hidden canvases -->
 <canvas id="offCanvas"></canvas>
 <canvas id="poseCanvas" style="display:none"></canvas>
 
@@ -302,7 +289,6 @@
   <a href="https://github.com/chuneeeee/climbing" target="_blank">GitHub</a>
 </footer>
 
-<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
@@ -401,9 +387,12 @@ function getCropBox(landmarks, vidW, vidH, ratio, padding) {
   }
   const cx = (minX + maxX) / 2 * vidW;
   const cy = (minY + maxY) / 2 * vidH;
+
+  // person occupies center cell of 3x3 grid → crop = 3x person height
   const personH = (maxY - minY) * vidH;
-  let cropH = personH * (1 + padding);
+  let cropH = personH * 3 * (1 + padding * 0.1);
   let cropW = cropH * ratio;
+
   if (cropW > vidW) { cropW = vidW; cropH = cropW / ratio; }
   if (cropH > vidH) { cropH = vidH; cropW = cropH * ratio; }
   let sx = cx - cropW / 2;
