@@ -446,21 +446,7 @@ async function startProcessing() {
   offCanvas.width = outW; offCanvas.height = outH;
   const outCtx = offCanvas.getContext('2d');
 
-  let stream, recorder, chunks = [];
-  try {
-    stream = offCanvas.captureStream(fps);
-    recorder = new MediaRecorder(stream, {
-      mimeType: getSupportedMimeType(),
-      videoBitsPerSecond: 8_000_000,
-    });
-  } catch (e) {
-    setStatus('MediaRecorder 지원 안 됨: ' + e.message, 'error');
-    isProcessing = false; processBtn.disabled = false;
-    return;
-  }
-  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-  recorder.start();
-
+  // Init MediaPipe Pose
   let poseLandmarks = null;
   const pose = new Pose({
     locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
@@ -477,13 +463,15 @@ async function startProcessing() {
   });
   await pose.initialize();
 
-  setStatus('영상 처리 중...', '');
-
+  // Phase 1: 포즈 분석 - 모든 프레임의 crop box 수집 (속도 무관)
+  setStatus('포즈 분석 중... (1/2)', '');
   const boxBuf = [];
+  const allBoxes = [];
 
   for (let fi = 0; fi < totalFrames; fi++) {
     const t = fi / fps;
     if (t > duration) break;
+
     vid.currentTime = t;
     await new Promise(r => { vid.onseeked = r; });
     poseCtx.drawImage(vid, 0, 0, vidW, vidH);
@@ -498,11 +486,40 @@ async function startProcessing() {
       if (cropW > vidW) { cropW = vidW; cropH = cropW / ratio; }
       box = { sx: (vidW - cropW) / 2, sy: (vidH - cropH) / 2, cropW, cropH };
     }
-
     boxBuf.push(box);
     if (boxBuf.length > smoothN) boxBuf.shift();
-    const smoothed = smoothBoxes(boxBuf) || box;
+    allBoxes.push(smoothBoxes(boxBuf) || box);
 
+    const pct = ((fi + 1) / totalFrames * 50).toFixed(1);
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = `포즈 분석 중... ${pct}% (${fi+1}/${totalFrames} 프레임)`;
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  pose.close();
+
+  // Phase 2: 인코딩 - 정확한 fps 간격으로 재생하며 녹화 (출력 길이 = 입력 길이)
+  setStatus('영상 인코딩 중... (2/2)', '');
+  let stream, recorder, chunks = [];
+  try {
+    stream = offCanvas.captureStream(fps);
+    recorder = new MediaRecorder(stream, {
+      mimeType: getSupportedMimeType(),
+      videoBitsPerSecond: 8_000_000,
+    });
+  } catch (e) {
+    setStatus('MediaRecorder 지원 안 됨: ' + e.message, 'error');
+    isProcessing = false; processBtn.disabled = false;
+    return;
+  }
+  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  recorder.start();
+
+  for (let fi = 0; fi < allBoxes.length; fi++) {
+    vid.currentTime = fi / fps;
+    await new Promise(r => { vid.onseeked = r; });
+
+    const smoothed = allBoxes[fi];
     outCtx.drawImage(vid, smoothed.sx, smoothed.sy, smoothed.cropW, smoothed.cropH, 0, 0, outW, outH);
 
     if (fi % 5 === 0) {
@@ -510,17 +527,18 @@ async function startProcessing() {
       previewCanvas.getContext('2d').drawImage(offCanvas, 0, 0);
     }
 
-    const pct = ((fi + 1) / totalFrames * 100).toFixed(1);
+    const pct = (50 + (fi + 1) / allBoxes.length * 50).toFixed(1);
     progressFill.style.width = pct + '%';
-    progressLabel.textContent = `처리 중... ${pct}% (${fi+1}/${totalFrames} 프레임)`;
-    await new Promise(r => setTimeout(r, 0));
+    progressLabel.textContent = `인코딩 중... ${pct}% (${fi+1}/${allBoxes.length} 프레임)`;
+
+    // 정확한 프레임 간격 유지 → 출력 길이 = 입력 길이
+    await new Promise(r => setTimeout(r, 1000 / fps));
   }
 
   recorder.stop();
   await new Promise(r => { recorder.onstop = r; });
 
   outputBlob = new Blob(chunks, { type: recorder.mimeType });
-  pose.close();
   vid.src = '';
 
   progressFill.style.width = '100%';
