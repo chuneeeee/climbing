@@ -1,0 +1,20 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 168.107.25.107
+          username: chun
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/chun/climbing
+            git pull origin main
+            sudo systemctl restart boulder-api
