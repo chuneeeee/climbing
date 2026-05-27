@@ -263,8 +263,8 @@
 
   <div class="row">
     <label>출력 높이(px)</label>
-    <input type="range" id="heightRange" min="480" max="3840" value="1080" step="120" />
-    <span id="heightVal" style="width:50px">1080</span>
+    <input type="range" id="heightRange" min="480" max="3840" value="1920" step="120" />
+    <span id="heightVal" style="width:50px">1920</span>
   </div>
 </div>
 
@@ -355,11 +355,16 @@ dropzone.addEventListener('drop', e => {
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
 
 // ── Ratio buttons ─────────────────────────────────────────────────────────────
+const fhdHeightMap = { '9:16': 1920, '4:5': 1350, '1:1': 1080 };
+
 document.querySelectorAll('.ratio-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     selectedRatio = btn.dataset.ratio;
+    const h = fhdHeightMap[selectedRatio];
+    heightRange.value = h;
+    heightVal.textContent = h;
     if (srcVideo.src) drawPreviewFrame();
   });
 });
